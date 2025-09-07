@@ -1,2 +1,2 @@
-// Re-export all public API from define.ts
-export { array, kind, optional } from "./define.ts";
+// Re-export all public API from kind.ts
+export { array, kind, optional } from "./kind.ts";
