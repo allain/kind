@@ -1,9 +1,17 @@
 // Optional wrapper type
 type Optional<T> = { _optional: true; _type: T };
 
+// Array wrapper type
+type ArrayType<T> = { _array: true; _type: T };
+
 // Helper function to create optional schema properties
 export function optional<T>(type: T): Optional<T> {
   return { _optional: true, _type: type };
+}
+
+// Helper function to create array schema properties
+export function array<T>(type: T): ArrayType<T> {
+  return { _array: true, _type: type };
 }
 
 // Helper type to infer the data shape from a schema
@@ -14,7 +22,14 @@ type InferData<TSchema> =
         : TSchema[K] extends NumberConstructor ? number
         : TSchema[K] extends BooleanConstructor ? boolean
         : TSchema[K] extends DateConstructor ? Date
-        : TSchema[K] extends new (...args: any[]) => infer T ? T
+        : TSchema[K] extends ArrayType<infer U> 
+          ? U extends StringConstructor ? string[]
+          : U extends NumberConstructor ? number[]
+          : U extends BooleanConstructor ? boolean[]
+          : U extends DateConstructor ? Date[]
+          : U extends new (...args: unknown[]) => infer T ? T[]
+          : unknown[]
+        : TSchema[K] extends new (...args: unknown[]) => infer T ? T
         : unknown;
   }
   & {
@@ -24,7 +39,14 @@ type InferData<TSchema> =
         : U extends NumberConstructor ? number
         : U extends BooleanConstructor ? boolean
         : U extends DateConstructor ? Date
-        : U extends new (...args: any[]) => infer T ? T
+        : U extends ArrayType<infer V>
+          ? V extends StringConstructor ? string[]
+          : V extends NumberConstructor ? number[]
+          : V extends BooleanConstructor ? boolean[]
+          : V extends DateConstructor ? Date[]
+          : V extends new (...args: unknown[]) => infer T ? T[]
+          : unknown[]
+        : U extends new (...args: unknown[]) => infer T ? T
         : unknown
         : never;
   };
@@ -33,6 +55,7 @@ type InferData<TSchema> =
 export type IsConstructor<T> = T extends
   StringConstructor | NumberConstructor | BooleanConstructor | DateConstructor
   ? true
+  : T extends ArrayType<unknown> ? true // Array wrapper
   : T extends Optional<unknown> ? true
   : T extends new (...args: any[]) => any ? true // Constructor function (class constructor)
   : false;
@@ -59,7 +82,17 @@ type FlexibleInput<TSchema> =
           ? boolean | string | number | null | undefined
         : TSchema[K] extends DateConstructor
           ? Date | string | number | null | undefined
-        : TSchema[K] extends new (...args: any[]) => any ? unknown // Allow any input for custom constructors
+        : TSchema[K] extends ArrayType<infer U>
+          ? U extends StringConstructor
+            ? (string | number | boolean | null | undefined)[]
+          : U extends NumberConstructor
+            ? (number | string | boolean | null | undefined)[]
+          : U extends BooleanConstructor
+            ? (boolean | string | number | null | undefined)[]
+          : U extends DateConstructor
+            ? (Date | string | number | null | undefined)[]
+          : unknown[] // Allow any array input for custom constructors
+        : TSchema[K] extends new (...args: unknown[]) => unknown ? unknown // Allow any input for custom constructors
         : unknown;
   }
   & {
@@ -72,7 +105,17 @@ type FlexibleInput<TSchema> =
         : U extends BooleanConstructor
           ? boolean | string | number | null | undefined
         : U extends DateConstructor ? Date | string | number | null | undefined
-        : U extends new (...args: any[]) => any ? unknown
+        : U extends ArrayType<infer V>
+          ? V extends StringConstructor
+            ? (string | number | boolean | null | undefined)[]
+          : V extends NumberConstructor
+            ? (number | string | boolean | null | undefined)[]
+          : V extends BooleanConstructor
+            ? (boolean | string | number | null | undefined)[]
+          : V extends DateConstructor
+            ? (Date | string | number | null | undefined)[]
+          : unknown[] // Allow any array input for custom constructors
+        : U extends new (...args: unknown[]) => unknown ? unknown
         : unknown
         : never;
   };
@@ -113,6 +156,22 @@ function convertValue(
   }
 
   try {
+    // Handle ArrayType wrapper
+    if (typeof constructor === "object" && constructor !== null && "_array" in constructor) {
+      if (!Array.isArray(value)) {
+        throw new Error(`Expected array but got ${typeof value}`);
+      }
+      const arrayType = constructor as ArrayType<unknown>;
+      const elementConstructor = arrayType._type;
+      return value.map((item, index) => {
+        try {
+          return convertValue(`${key}[${index}]`, item, elementConstructor);
+        } catch (error) {
+          throw new Error(`Array element at index ${index}: ${error instanceof Error ? error.message : error}`);
+        }
+      });
+    }
+
     if (typeof constructor === "function") {
       // For built-in constructors, use them as functions (not with 'new')
       if (constructor === String) return String(value);
@@ -121,7 +180,16 @@ function convertValue(
         if (isNaN(num)) throw new Error(`Cannot convert to number`);
         return num;
       }
-      if (constructor === Boolean) return Boolean(value);
+      if (constructor === Boolean) {
+        if (typeof value === "string") {
+          const lower = value.toLowerCase();
+          if (lower === "false" || lower === "0" || lower === "") {
+            return false;
+          }
+          return true; // Any other non-empty string is truthy
+        }
+        return Boolean(value);
+      }
       if (constructor === Date) {
         const date = new Date(value as string | number | Date);
         if (isNaN(date.getTime())) throw new Error(`Cannot convert to Date`);
@@ -134,15 +202,9 @@ function convertValue(
 
     return value; // Unknown constructor types pass through
   } catch (error) {
-    const expectedTypeName = constructor === String
-      ? "string"
-      : constructor === Number
-      ? "number"
-      : constructor === Boolean
-      ? "boolean"
-      : constructor === Date
-      ? "Date"
-      : "unknown";
+    const expectedTypeName = (typeof constructor === "object" && constructor !== null && "_array" in constructor)
+      ? `array of ${getTypeName((constructor as ArrayType<unknown>)._type)}`
+      : getTypeName(constructor);
 
     throw new TypeError(
       `Invalid value for property '${key}': cannot convert ${typeof value} (${value}) to ${expectedTypeName}. ${
@@ -152,11 +214,23 @@ function convertValue(
   }
 }
 
+function getTypeName(constructor: unknown): string {
+  if (constructor === String) return "string";
+  if (constructor === Number) return "number";
+  if (constructor === Boolean) return "boolean";
+  if (constructor === Date) return "Date";
+  return "unknown";
+}
+
 // Helper to check if a value is a constructor (class or built-in type)
 function isConstructor(value: unknown): boolean {
   if (
     value === String || value === Number || value === Boolean || value === Date
   ) {
+    return true;
+  }
+  // Check for ArrayType wrapper
+  if (typeof value === "object" && value !== null && "_array" in value) {
     return true;
   }
   if (typeof value === "object" && value !== null && "_optional" in value) {
@@ -251,5 +325,7 @@ export function kind<TDefinition extends Record<string, unknown>>(
   Object.defineProperties(DynamicClass.prototype, methodDescriptors);
 
   // 5. Return the constructor, casting it to the correct combined type.
-  return DynamicClass as any;
+  return DynamicClass as new (
+    data: FlexibleInput<ExtractSchema<TDefinition>>,
+  ) => InferData<ExtractSchema<TDefinition>> & ExtractMethods<TDefinition>;
 }
