@@ -7,31 +7,34 @@ export function optional<T>(type: T): Optional<T> {
 }
 
 // Helper type to infer the data shape from a schema
-type InferData<TSchema> = {
-  [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? never : K]: TSchema[K] extends StringConstructor ? string
-    : TSchema[K] extends NumberConstructor ? number
-    : TSchema[K] extends BooleanConstructor ? boolean
-    : TSchema[K] extends DateConstructor ? Date
-    : TSchema[K] extends new (...args: any[]) => infer T ? T
-    : unknown;
-} & {
-  [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? K : never]?: TSchema[K] extends Optional<infer U>
-    ? U extends StringConstructor ? string
-    : U extends NumberConstructor ? number
-    : U extends BooleanConstructor ? boolean
-    : U extends DateConstructor ? Date
-    : U extends new (...args: any[]) => infer T ? T
-    : unknown
-    : never;
-};
+type InferData<TSchema> =
+  & {
+    [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? never : K]:
+      TSchema[K] extends StringConstructor ? string
+        : TSchema[K] extends NumberConstructor ? number
+        : TSchema[K] extends BooleanConstructor ? boolean
+        : TSchema[K] extends DateConstructor ? Date
+        : TSchema[K] extends new (...args: any[]) => infer T ? T
+        : unknown;
+  }
+  & {
+    [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? K : never]?:
+      TSchema[K] extends Optional<infer U>
+        ? U extends StringConstructor ? string
+        : U extends NumberConstructor ? number
+        : U extends BooleanConstructor ? boolean
+        : U extends DateConstructor ? Date
+        : U extends new (...args: any[]) => infer T ? T
+        : unknown
+        : never;
+  };
 
 // Helper to check if a value type is a constructor
-export type IsConstructor<T> = T extends StringConstructor | NumberConstructor | BooleanConstructor | DateConstructor 
+export type IsConstructor<T> = T extends
+  StringConstructor | NumberConstructor | BooleanConstructor | DateConstructor
   ? true
-  : T extends Optional<unknown>
-  ? true  
-  : T extends new (...args: any[]) => any
-  ? true   // Constructor function (class constructor)
+  : T extends Optional<unknown> ? true
+  : T extends new (...args: any[]) => any ? true // Constructor function (class constructor)
   : false;
 
 // Extract schema properties from definition
@@ -39,34 +42,40 @@ export type ExtractSchema<TDef> = {
   [K in keyof TDef as IsConstructor<TDef[K]> extends true ? K : never]: TDef[K];
 };
 
-// Extract method properties from definition  
+// Extract method properties from definition
 type ExtractMethods<TDef> = {
   [K in keyof TDef as IsConstructor<TDef[K]> extends true ? never : K]: TDef[K];
 };
 
 // Helper type for flexible input that allows conversion
-type FlexibleInput<TSchema> = {
-  [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? never : K]: TSchema[K] extends StringConstructor
-    ? string | number | boolean | null | undefined
-    : TSchema[K] extends NumberConstructor
-      ? number | string | boolean | null | undefined
-    : TSchema[K] extends BooleanConstructor
-      ? boolean | string | number | null | undefined
-    : TSchema[K] extends DateConstructor
-      ? Date | string | number | null | undefined
-    : TSchema[K] extends new (...args: any[]) => any
-      ? unknown  // Allow any input for custom constructors
-    : unknown;
-} & {
-  [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? K : never]?: TSchema[K] extends Optional<infer U>
-    ? U extends StringConstructor ? string | number | boolean | null | undefined
-    : U extends NumberConstructor ? number | string | boolean | null | undefined
-    : U extends BooleanConstructor ? boolean | string | number | null | undefined
-    : U extends DateConstructor ? Date | string | number | null | undefined
-    : U extends new (...args: any[]) => any ? unknown
-    : unknown
-    : never;
-};
+type FlexibleInput<TSchema> =
+  & {
+    [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? never : K]:
+      TSchema[K] extends StringConstructor
+        ? string | number | boolean | null | undefined
+        : TSchema[K] extends NumberConstructor
+          ? number | string | boolean | null | undefined
+        : TSchema[K] extends BooleanConstructor
+          ? boolean | string | number | null | undefined
+        : TSchema[K] extends DateConstructor
+          ? Date | string | number | null | undefined
+        : TSchema[K] extends new (...args: any[]) => any ? unknown // Allow any input for custom constructors
+        : unknown;
+  }
+  & {
+    [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? K : never]?:
+      TSchema[K] extends Optional<infer U>
+        ? U extends StringConstructor
+          ? string | number | boolean | null | undefined
+        : U extends NumberConstructor
+          ? number | string | boolean | null | undefined
+        : U extends BooleanConstructor
+          ? boolean | string | number | null | undefined
+        : U extends DateConstructor ? Date | string | number | null | undefined
+        : U extends new (...args: any[]) => any ? unknown
+        : unknown
+        : never;
+  };
 
 /**
  * Creates a class constructor with strongly-typed properties and methods.
@@ -94,7 +103,11 @@ type FlexibleInput<TSchema> = {
  * ```
  */
 // Helper function to convert a value using its constructor
-function convertValue(key: string, value: unknown, constructor: unknown): unknown {
+function convertValue(
+  key: string,
+  value: unknown,
+  constructor: unknown,
+): unknown {
   if (value === undefined || value === null) {
     return value; // Allow undefined/null values as-is
   }
@@ -114,43 +127,52 @@ function convertValue(key: string, value: unknown, constructor: unknown): unknow
         if (isNaN(date.getTime())) throw new Error(`Cannot convert to Date`);
         return date;
       }
-      
+
       // For other constructors, use 'new'
       return new (constructor as new (value: unknown) => unknown)(value);
     }
-    
+
     return value; // Unknown constructor types pass through
   } catch (error) {
-    const expectedTypeName = constructor === String ? "string"
-      : constructor === Number ? "number"
-      : constructor === Boolean ? "boolean" 
-      : constructor === Date ? "Date"
+    const expectedTypeName = constructor === String
+      ? "string"
+      : constructor === Number
+      ? "number"
+      : constructor === Boolean
+      ? "boolean"
+      : constructor === Date
+      ? "Date"
       : "unknown";
 
     throw new TypeError(
       `Invalid value for property '${key}': cannot convert ${typeof value} (${value}) to ${expectedTypeName}. ${
         error instanceof Error ? error.message : ""
-      }`
+      }`,
     );
   }
 }
 
 // Helper to check if a value is a constructor (class or built-in type)
 function isConstructor(value: unknown): boolean {
-  if (value === String || value === Number || value === Boolean || value === Date) {
+  if (
+    value === String || value === Number || value === Boolean || value === Date
+  ) {
     return true;
   }
-  if (typeof value === 'object' && value !== null && '_optional' in value) {
+  if (typeof value === "object" && value !== null && "_optional" in value) {
     return true; // Optional wrapper
   }
-  if (typeof value === 'function') {
+  if (typeof value === "function") {
     // Check if it's a class constructor (not a regular function/method)
     // Built-in constructors don't have prototype.constructor === value check
-    if (value === String || value === Number || value === Boolean || value === Date) {
+    if (
+      value === String || value === Number || value === Boolean ||
+      value === Date
+    ) {
       return true;
     }
     // For custom classes, check if it has a prototype
-    if (value.prototype && typeof value.prototype === 'object') {
+    if (value.prototype && typeof value.prototype === "object") {
       return true;
     }
   }
@@ -160,21 +182,23 @@ function isConstructor(value: unknown): boolean {
 // Split definition into schema and methods
 function splitDefinition(definition: Record<string, unknown>) {
   const schema: Record<string, unknown> = {};
-  
+
   for (const [key, value] of Object.entries(definition)) {
     if (isConstructor(value)) {
       schema[key] = value;
     }
   }
-  
+
   return { schema };
 }
 
 export function kind<TDefinition extends Record<string, unknown>>(
   definition: TDefinition & ThisType<InferData<ExtractSchema<TDefinition>>>,
-): new (data: FlexibleInput<ExtractSchema<TDefinition>>) => InferData<ExtractSchema<TDefinition>> & ExtractMethods<TDefinition> {
+): new (
+  data: FlexibleInput<ExtractSchema<TDefinition>>,
+) => InferData<ExtractSchema<TDefinition>> & ExtractMethods<TDefinition> {
   const { schema } = splitDefinition(definition);
-  
+
   // 1. Create a base class dynamically.
   const DynamicClass = class {
     constructor(data: Record<string, unknown>) {
@@ -183,9 +207,12 @@ export function kind<TDefinition extends Record<string, unknown>>(
 
       for (const [key, expectedType] of Object.entries(schema)) {
         const value = data[key];
-        
+
         // Handle optional properties
-        if (typeof expectedType === 'object' && expectedType !== null && '_optional' in expectedType) {
+        if (
+          typeof expectedType === "object" && expectedType !== null &&
+          "_optional" in expectedType
+        ) {
           const optionalType = expectedType as Optional<unknown>;
           if (value === undefined) {
             // Skip undefined optional properties
@@ -213,14 +240,14 @@ export function kind<TDefinition extends Record<string, unknown>>(
   // Get descriptors from the original definition, not the split methods
   const originalDescriptors = Object.getOwnPropertyDescriptors(definition);
   const methodDescriptors: Record<string, PropertyDescriptor> = {};
-  
+
   // Only copy descriptors for non-constructor properties
   for (const [key, descriptor] of Object.entries(originalDescriptors)) {
     if (!isConstructor(definition[key])) {
       methodDescriptors[key] = descriptor;
     }
   }
-  
+
   Object.defineProperties(DynamicClass.prototype, methodDescriptors);
 
   // 5. Return the constructor, casting it to the correct combined type.
