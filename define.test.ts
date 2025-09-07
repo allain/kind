@@ -447,4 +447,85 @@ describe("kind function", () => {
     expect(todos.totalItems).toBe(3);
     expect(todos.getCompletedItems()).toEqual(["Task 1", "Task 3"]);
   });
+
+  it("supports custom base class", () => {
+    class BaseClass {
+      baseProperty = "base";
+      baseMethod() {
+        return "base method called";
+      }
+    }
+
+    const CustomKind = kind({
+      name: String,
+      age: Number,
+    }, BaseClass);
+
+    const instance = new CustomKind({ name: "John", age: 30 });
+    expect(instance.name).toBe("John");
+    expect(instance.age).toBe(30);
+    expect(instance.baseProperty).toBe("base");
+    expect(instance.baseMethod()).toBe("base method called");
+    expect(instance instanceof BaseClass).toBe(true);
+  });
+
+  it("works without base class (backwards compatibility)", () => {
+    const SimpleKind = kind({
+      value: String,
+    });
+
+    const instance = new SimpleKind({ value: "test" });
+    expect(instance.value).toBe("test");
+  });
+
+  it("supports base class with constructor arguments", () => {
+    class BaseWithConstructor {
+      public initialized: boolean;
+
+      constructor() {
+        this.initialized = true;
+      }
+
+      getStatus() {
+        return this.initialized ? "ready" : "not ready";
+      }
+    }
+
+    const ExtendedKind = kind({
+      data: String,
+    }, BaseWithConstructor);
+
+    const instance = new ExtendedKind({ data: "test data" });
+    expect(instance.data).toBe("test data");
+    expect(instance.initialized).toBe(true);
+    expect(instance.getStatus()).toBe("ready");
+    expect(instance instanceof BaseWithConstructor).toBe(true);
+  });
+
+  it("supports base class with methods and kind methods", () => {
+    class BaseClass {
+      baseValue = 10;
+      multiplyBase(factor: number) {
+        return this.baseValue * factor;
+      }
+    }
+
+    const MixedKind = kind({
+      value: Number,
+      getValue(): number {
+        return this.value;
+      },
+      getCombined(): number {
+        return this.value + this.baseValue;
+      },
+    }, BaseClass);
+
+    const instance = new MixedKind({ value: 5 });
+    expect(instance.value).toBe(5);
+    expect(instance.baseValue).toBe(10);
+    expect(instance.getValue()).toBe(5);
+    expect(instance.multiplyBase(3)).toBe(30);
+    expect(instance.getCombined()).toBe(15);
+    expect(instance instanceof BaseClass).toBe(true);
+  });
 });

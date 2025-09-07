@@ -22,7 +22,7 @@ type InferData<TSchema> =
         : TSchema[K] extends NumberConstructor ? number
         : TSchema[K] extends BooleanConstructor ? boolean
         : TSchema[K] extends DateConstructor ? Date
-        : TSchema[K] extends ArrayType<infer U> 
+        : TSchema[K] extends ArrayType<infer U>
           ? U extends StringConstructor ? string[]
           : U extends NumberConstructor ? number[]
           : U extends BooleanConstructor ? boolean[]
@@ -39,8 +39,7 @@ type InferData<TSchema> =
         : U extends NumberConstructor ? number
         : U extends BooleanConstructor ? boolean
         : U extends DateConstructor ? Date
-        : U extends ArrayType<infer V>
-          ? V extends StringConstructor ? string[]
+        : U extends ArrayType<infer V> ? V extends StringConstructor ? string[]
           : V extends NumberConstructor ? number[]
           : V extends BooleanConstructor ? boolean[]
           : V extends DateConstructor ? Date[]
@@ -157,7 +156,10 @@ function convertValue(
 
   try {
     // Handle ArrayType wrapper
-    if (typeof constructor === "object" && constructor !== null && "_array" in constructor) {
+    if (
+      typeof constructor === "object" && constructor !== null &&
+      "_array" in constructor
+    ) {
       if (!Array.isArray(value)) {
         throw new Error(`Expected array but got ${typeof value}`);
       }
@@ -167,7 +169,11 @@ function convertValue(
         try {
           return convertValue(`${key}[${index}]`, item, elementConstructor);
         } catch (error) {
-          throw new Error(`Array element at index ${index}: ${error instanceof Error ? error.message : error}`);
+          throw new Error(
+            `Array element at index ${index}: ${
+              error instanceof Error ? error.message : error
+            }`,
+          );
         }
       });
     }
@@ -202,9 +208,11 @@ function convertValue(
 
     return value; // Unknown constructor types pass through
   } catch (error) {
-    const expectedTypeName = (typeof constructor === "object" && constructor !== null && "_array" in constructor)
-      ? `array of ${getTypeName((constructor as ArrayType<unknown>)._type)}`
-      : getTypeName(constructor);
+    const expectedTypeName =
+      (typeof constructor === "object" && constructor !== null &&
+          "_array" in constructor)
+        ? `array of ${getTypeName((constructor as ArrayType<unknown>)._type)}`
+        : getTypeName(constructor);
 
     throw new TypeError(
       `Invalid value for property '${key}': cannot convert ${typeof value} (${value}) to ${expectedTypeName}. ${
@@ -266,16 +274,27 @@ function splitDefinition(definition: Record<string, unknown>) {
   return { schema };
 }
 
-export function kind<TDefinition extends Record<string, unknown>>(
-  definition: TDefinition & ThisType<InferData<ExtractSchema<TDefinition>>>,
+export function kind<
+  TDefinition extends Record<string, unknown>,
+  TBase extends new (...args: any[]) => any = new () => {},
+>(
+  definition:
+    & TDefinition
+    & ThisType<InferData<ExtractSchema<TDefinition>> & InstanceType<TBase>>,
+  baseClass?: TBase,
 ): new (
   data: FlexibleInput<ExtractSchema<TDefinition>>,
-) => InferData<ExtractSchema<TDefinition>> & ExtractMethods<TDefinition> {
+) =>
+  & InferData<ExtractSchema<TDefinition>>
+  & ExtractMethods<TDefinition>
+  & InstanceType<TBase> {
   const { schema } = splitDefinition(definition);
 
   // 1. Create a base class dynamically.
-  const DynamicClass = class {
+  const BaseConstructor = baseClass || (class {} as any);
+  const DynamicClass = class extends BaseConstructor {
     constructor(data: Record<string, unknown>) {
+      super();
       // 2. Validate and potentially convert the data against the schema
       const validatedData: Record<string, unknown> = {};
 
@@ -327,5 +346,8 @@ export function kind<TDefinition extends Record<string, unknown>>(
   // 5. Return the constructor, casting it to the correct combined type.
   return DynamicClass as new (
     data: FlexibleInput<ExtractSchema<TDefinition>>,
-  ) => InferData<ExtractSchema<TDefinition>> & ExtractMethods<TDefinition>;
+  ) =>
+    & InferData<ExtractSchema<TDefinition>>
+    & ExtractMethods<TDefinition>
+    & InstanceType<TBase>;
 }
