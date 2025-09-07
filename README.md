@@ -17,7 +17,7 @@ The key advantages of using `kind` over traditional class definitions:
 A simple example showing how to create a class with properties and methods:
 
 ```typescript
-import { kind } from "@albud/kind";
+import { kind } from "jsr:@albud/kind";
 
 const Person = kind({
   name: String,
