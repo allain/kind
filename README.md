@@ -44,7 +44,7 @@ Explore more sophisticated patterns and capabilities:
 
 ### Optional Properties
 ```typescript
-import { kind, optional } from "@albud/kind";
+import { kind, optional } from "jsr:@albud/kind";
 
 const User = kind({
   name: String,
@@ -56,7 +56,7 @@ const user = new User({ name: "John" }); // email is undefined
 
 ### Arrays
 ```typescript
-import { kind, array } from "@albud/kind";
+import { kind, array } from "jsr:@albud/kind";
 
 const TodoList = kind({
   items: array(String),
@@ -130,7 +130,7 @@ How to add `kind` to your project:
 
 ```bash
 # Deno
-import { kind, optional, array } from "@albud/kind";
+import { kind, optional, array } from "jsr:@albud/kind";
 ```
 
 ## But Why?
