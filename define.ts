@@ -25,6 +25,25 @@ type InferData<TSchema> = {
     : never;
 };
 
+// Helper to check if a value type is a constructor
+export type IsConstructor<T> = T extends StringConstructor | NumberConstructor | BooleanConstructor | DateConstructor 
+  ? true
+  : T extends Optional<unknown>
+  ? true  
+  : T extends new (...args: any[]) => any
+  ? true   // Constructor function (class constructor)
+  : false;
+
+// Extract schema properties from definition
+export type ExtractSchema<TDef> = {
+  [K in keyof TDef as IsConstructor<TDef[K]> extends true ? K : never]: TDef[K];
+};
+
+// Extract method properties from definition  
+type ExtractMethods<TDef> = {
+  [K in keyof TDef as IsConstructor<TDef[K]> extends true ? never : K]: TDef[K];
+};
+
 // Helper type for flexible input that allows conversion
 type FlexibleInput<TSchema> = {
   [K in keyof TSchema as TSchema[K] extends Optional<unknown> ? never : K]: TSchema[K] extends StringConstructor
@@ -116,21 +135,54 @@ function convertValue(key: string, value: unknown, constructor: unknown): unknow
   }
 }
 
-export function kind<
-  TSchema extends Record<string, unknown>,
-  TMethods extends Record<string, unknown>,
->(
-  schema: TSchema,
-  methods: TMethods & ThisType<InferData<TSchema>>,
-): new (data: FlexibleInput<TSchema>) => InferData<TSchema> & TMethods {
+// Helper to check if a value is a constructor (class or built-in type)
+function isConstructor(value: unknown): boolean {
+  if (value === String || value === Number || value === Boolean || value === Date) {
+    return true;
+  }
+  if (typeof value === 'object' && value !== null && '_optional' in value) {
+    return true; // Optional wrapper
+  }
+  if (typeof value === 'function') {
+    // Check if it's a class constructor (not a regular function/method)
+    // Built-in constructors don't have prototype.constructor === value check
+    if (value === String || value === Number || value === Boolean || value === Date) {
+      return true;
+    }
+    // For custom classes, check if it has a prototype
+    if (value.prototype && typeof value.prototype === 'object') {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Split definition into schema and methods
+function splitDefinition(definition: Record<string, unknown>) {
+  const schema: Record<string, unknown> = {};
+  
+  for (const [key, value] of Object.entries(definition)) {
+    if (isConstructor(value)) {
+      schema[key] = value;
+    }
+  }
+  
+  return { schema };
+}
+
+export function kind<TDefinition extends Record<string, unknown>>(
+  definition: TDefinition & ThisType<InferData<ExtractSchema<TDefinition>>>,
+): new (data: FlexibleInput<ExtractSchema<TDefinition>>) => InferData<ExtractSchema<TDefinition>> & ExtractMethods<TDefinition> {
+  const { schema } = splitDefinition(definition);
+  
   // 1. Create a base class dynamically.
   const DynamicClass = class {
-    constructor(data: FlexibleInput<TSchema>) {
+    constructor(data: Record<string, unknown>) {
       // 2. Validate and potentially convert the data against the schema
       const validatedData: Record<string, unknown> = {};
 
       for (const [key, expectedType] of Object.entries(schema)) {
-        const value = (data as Record<string, unknown>)[key];
+        const value = data[key];
         
         // Handle optional properties
         if (typeof expectedType === 'object' && expectedType !== null && '_optional' in expectedType) {
@@ -149,9 +201,7 @@ export function kind<
       Object.assign(this, validatedData);
 
       // 4. Also assign any extra properties that weren't in the schema
-      for (
-        const [key, value] of Object.entries(data as Record<string, unknown>)
-      ) {
+      for (const [key, value] of Object.entries(data)) {
         if (!(key in schema)) {
           (this as Record<string, unknown>)[key] = value;
         }
@@ -159,13 +209,20 @@ export function kind<
     }
   };
 
-  // 4. Add the methods and getters from the methods object to the class's prototype.
-  // Use defineProperties to properly copy getters and setters
-  const descriptors = Object.getOwnPropertyDescriptors(methods);
-  Object.defineProperties(DynamicClass.prototype, descriptors);
+  // 4. Add the methods and getters from the original definition to the class's prototype.
+  // Get descriptors from the original definition, not the split methods
+  const originalDescriptors = Object.getOwnPropertyDescriptors(definition);
+  const methodDescriptors: Record<string, PropertyDescriptor> = {};
+  
+  // Only copy descriptors for non-constructor properties
+  for (const [key, descriptor] of Object.entries(originalDescriptors)) {
+    if (!isConstructor(definition[key])) {
+      methodDescriptors[key] = descriptor;
+    }
+  }
+  
+  Object.defineProperties(DynamicClass.prototype, methodDescriptors);
 
   // 5. Return the constructor, casting it to the correct combined type.
-  return DynamicClass as new (
-    data: FlexibleInput<TSchema>,
-  ) => InferData<TSchema> & TMethods;
+  return DynamicClass as any;
 }

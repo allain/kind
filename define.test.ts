@@ -4,23 +4,25 @@ import { describe, it } from "@std/testing/bdd";
 
 describe("kind function", () => {
   it("creates a Person class with methods", () => {
-    const Person = kind(
-      { name: String, age: Number },
-      {
-        greet() {
-          return `Hello, my name is ${this.name}`;
-        },
+    const Person = kind({
+      // Schema properties
+      name: String,
+      age: Number,
 
-        getAge() {
-          return this.age;
-        },
+      // Methods
+      greet(): string {
+        return `Hello, my name is ${this.name}`;
+      },
 
-        celebrateBirthday() {
-          this.age++;
-          return `Happy birthday! Now I'm ${this.age}`;
-        },
-      }
-    );
+      getAge(): number {
+        return this.age;
+      },
+
+      celebrateBirthday(): string {
+        this.age++;
+        return `Happy birthday! Now I'm ${this.age}`;
+      },
+    });
 
     const john = new Person({ name: "John", age: 30 });
 
@@ -31,23 +33,25 @@ describe("kind function", () => {
   });
 
   it("creates a Rectangle class with getters and methods", () => {
-    const Rectangle = kind(
-      { width: Number, height: Number },
-      {
-        get area() {
-          return this.width * this.height;
-        },
+    const Rectangle = kind({
+      // Schema properties
+      width: Number,
+      height: Number,
 
-        get perimeter() {
-          return 2 * (this.width + this.height);
-        },
+      // Methods and getters
+      get area() {
+        return this.width * this.height;
+      },
 
-        resize(widthFactor: number, heightFactor: number) {
-          this.width *= widthFactor;
-          this.height *= heightFactor;
-        },
-      }
-    );
+      get perimeter() {
+        return 2 * (this.width + this.height);
+      },
+
+      resize(widthFactor: number, heightFactor: number) {
+        this.width *= widthFactor;
+        this.height *= heightFactor;
+      },
+    });
 
     const rect = new Rectangle({ width: 10, height: 5 });
 
@@ -61,28 +65,30 @@ describe("kind function", () => {
   });
 
   it("creates a Counter class with state management", () => {
-    const Counter = kind(
-      { value: Number, initialValue: Number },
-      {
-        increment() {
-          this.value++;
-          return this.value;
-        },
+    const Counter = kind({
+      // Schema properties
+      value: Number,
+      initialValue: Number,
 
-        decrement() {
-          this.value--;
-          return this.value;
-        },
+      // Methods
+      increment() {
+        this.value++;
+        return this.value;
+      },
 
-        reset() {
-          this.value = this.initialValue;
-        },
+      decrement() {
+        this.value--;
+        return this.value;
+      },
 
-        get isZero() {
-          return this.value === 0;
-        },
-      }
-    );
+      reset() {
+        this.value = this.initialValue;
+      },
+
+      get isZero() {
+        return this.value === 0;
+      },
+    });
 
     const counter = new Counter({ value: 0, initialValue: 0 });
 
@@ -99,14 +105,17 @@ describe("kind function", () => {
   });
 
   it("preserves data properties on instances", () => {
-    const User = kind(
-      { firstName: String, lastName: String, id: Number },
-      {
-        getFullName() {
-          return `${this.firstName} ${this.lastName}`;
-        },
-      }
-    );
+    const User = kind({
+      // Schema properties
+      firstName: String,
+      lastName: String,
+      id: Number,
+
+      // Methods
+      getFullName() {
+        return `${this.firstName} ${this.lastName}`;
+      },
+    });
 
     const user = new User({ firstName: "Alice", lastName: "Smith", id: 123 });
 
@@ -117,19 +126,21 @@ describe("kind function", () => {
   });
 
   it("validates and converts data types", () => {
-    const TestClass = kind(
-      { str: String, num: Number, bool: Boolean, date: Date },
-      {}
-    );
+    const TestClass = kind({
+      str: String,
+      num: Number,
+      bool: Boolean,
+      date: Date,
+    });
 
     // Valid types should pass through
     const instance1 = new TestClass({
       str: "hello",
       num: 42,
       bool: true,
-      date: new Date("2023-01-01")
+      date: new Date("2023-01-01"),
     });
-    
+
     expect(instance1.str).toBe("hello");
     expect(instance1.num).toBe(42);
     expect(instance1.bool).toBe(true);
@@ -137,12 +148,12 @@ describe("kind function", () => {
 
     // Type conversion should work
     const instance2 = new TestClass({
-      str: 123,           // Should convert to "123"
-      num: "456",         // Should convert to 456
-      bool: "truthy",     // Should convert to true
-      date: "2023-01-01"  // Should convert to Date
+      str: 123, // Should convert to "123"
+      num: "456", // Should convert to 456
+      bool: "truthy", // Should convert to true
+      date: "2023-01-01", // Should convert to Date
     });
-    
+
     expect(instance2.str).toBe("123");
     expect(instance2.num).toBe(456);
     expect(instance2.bool).toBe(true);
@@ -150,10 +161,9 @@ describe("kind function", () => {
   });
 
   it("throws errors for invalid data", () => {
-    const TestClass = kind(
-      { num: Number },
-      {}
-    );
+    const TestClass = kind({
+      num: Number,
+    });
 
     // Invalid number should throw
     expect(() => {
@@ -165,37 +175,37 @@ describe("kind function", () => {
   });
 
   it("allows undefined and null values", () => {
-    const TestClass = kind(
-      { optional: String },
-      {}
-    );
+    const TestClass = kind({
+      optional: String,
+    });
 
     const instance1 = new TestClass({ optional: undefined });
     const instance2 = new TestClass({ optional: null });
-    
+
     expect(instance1.optional).toBeUndefined();
     expect(instance2.optional).toBeNull();
   });
 
   it("supports optional properties", () => {
-    const User = kind(
-      { 
-        name: String, 
-        email: optional(String), 
-        age: optional(Number) 
+    const User = kind({
+      // Schema properties
+      name: String,
+      email: optional(String),
+      age: optional(Number),
+
+      // Methods
+      getInfo() {
+        return `${this.name}${this.email ? ` (${this.email})` : ""}${
+          this.age ? ` - ${this.age} years old` : ""
+        }`;
       },
-      {
-        getInfo() {
-          return `${this.name}${this.email ? ` (${this.email})` : ''}${this.age ? ` - ${this.age} years old` : ''}`;
-        }
-      }
-    );
+    });
 
     // With all properties
-    const user1 = new User({ 
-      name: "Alice", 
-      email: "alice@example.com", 
-      age: 25 
+    const user1 = new User({
+      name: "Alice",
+      email: "alice@example.com",
+      age: 25,
     });
     expect(user1.name).toBe("Alice");
     expect(user1.email).toBe("alice@example.com");
@@ -210,9 +220,9 @@ describe("kind function", () => {
     expect(user2.getInfo()).toBe("Bob");
 
     // With some optional properties
-    const user3 = new User({ 
-      name: "Charlie", 
-      email: "charlie@example.com" 
+    const user3 = new User({
+      name: "Charlie",
+      email: "charlie@example.com",
     });
     expect(user3.name).toBe("Charlie");
     expect(user3.email).toBe("charlie@example.com");
@@ -224,56 +234,55 @@ describe("kind function", () => {
     // Custom Email class that extends String
     class Email extends String {
       constructor(email: string) {
-        if (typeof email !== 'string') {
-          throw new Error('Email must be a string');
+        if (typeof email !== "string") {
+          throw new Error("Email must be a string");
         }
-        if (!email.includes('@')) {
-          throw new Error('Invalid email format');
+        if (!email.includes("@")) {
+          throw new Error("Invalid email format");
         }
-        
+
         // Call parent constructor with normalized email
         super(email.toLowerCase());
       }
 
       get domain() {
-        return this.split('@')[1];
+        return this.split("@")[1];
       }
 
       get localPart() {
-        return this.split('@')[0];
+        return this.split("@")[0];
       }
 
       isValid() {
-        return this.includes('@') && this.split('@').length === 2;
+        return this.includes("@") && this.split("@").length === 2;
       }
     }
 
-    const Profile = kind(
-      { 
-        name: String, 
-        email: Email,
-        age: Number 
+    const Profile = kind({
+      // Schema properties
+      name: String,
+      email: Email,
+      age: Number,
+
+      // Methods
+      getContact() {
+        return `${this.name} <${this.email}>`;
       },
-      {
-        getContact() {
-          return `${this.name} <${this.email}>`;
-        },
-        
-        getDomain() {
-          return this.email.domain;
-        },
-        
-        isValidEmail() {
-          return this.email.isValid();
-        }
-      }
-    );
+
+      getDomain() {
+        return this.email.domain;
+      },
+
+      isValidEmail() {
+        return this.email.isValid();
+      },
+    });
 
     // Test with valid email
     const profile1 = new Profile({
       name: "John Doe",
       email: "John.Doe@Example.COM",
-      age: 30
+      age: 30,
     });
 
     expect(profile1.name).toBe("John Doe");
@@ -298,7 +307,7 @@ describe("kind function", () => {
       new Profile({
         name: "Jane",
         email: "invalid-email",
-        age: 25
+        age: 25,
       });
     }).toThrow(/Invalid email format/);
 
@@ -307,7 +316,7 @@ describe("kind function", () => {
       new Profile({
         name: "Bob",
         email: 12345,
-        age: 35
+        age: 35,
       });
     }).toThrow(/Email must be a string/);
   });
