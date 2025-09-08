@@ -4,12 +4,49 @@ type Optional<T> = { _optional: true; _type: T };
 // Array wrapper type
 type ArrayType<T> = { _array: true; _type: T };
 
-// Helper function to create optional schema properties
+/**
+ * Creates an optional property wrapper for use in kind schemas.
+ * Optional properties can be undefined in the input data.
+ * 
+ * @template T - The type of the wrapped property
+ * @param type - The constructor or type to wrap as optional
+ * @returns An optional wrapper object
+ * 
+ * @example
+ * ```typescript
+ * const User = kind({
+ *   name: String,
+ *   email: optional(String) // email can be undefined
+ * });
+ * 
+ * const user = new User({ name: "John" }); // email is undefined
+ * ```
+ */
 export function optional<T>(type: T): Optional<T> {
   return { _optional: true, _type: type };
 }
 
-// Helper function to create array schema properties
+/**
+ * Creates an array property wrapper for use in kind schemas.
+ * Array properties will automatically convert their elements to the specified type.
+ * 
+ * @template T - The type of the array elements
+ * @param type - The constructor or type for array elements
+ * @returns An array wrapper object
+ * 
+ * @example
+ * ```typescript
+ * const TodoList = kind({
+ *   items: array(String),
+ *   priorities: array(Number)
+ * });
+ * 
+ * const todos = new TodoList({
+ *   items: ["Task 1", 2, true],    // ["Task 1", "2", "true"]
+ *   priorities: ["1", "2", "3"]   // [1, 2, 3]
+ * });
+ * ```
+ */
 export function array<T>(type: T): ArrayType<T> {
   return { _array: true, _type: type };
 }
@@ -120,28 +157,61 @@ type FlexibleInput<TSchema> =
   };
 
 /**
- * Creates a class constructor with strongly-typed properties and methods.
+ * Creates a class constructor with strongly-typed properties, automatic validation, and type conversion.
+ * 
+ * The `kind` function is the core of this library, allowing you to define data-centric classes
+ * with minimal boilerplate while providing automatic type conversion and validation.
  *
- * @param schema An object defining the data properties using constructors (String, Number, Boolean, Date)
- * @param methods An object containing the methods and getters for the class
- * @returns A new class constructor
+ * @template TDefinition - The shape of the class definition (properties and methods)
+ * @template TBase - Optional base class to extend from
+ * @param definition - An object defining properties (using constructors) and methods
+ * @param baseClass - Optional base class to extend from
+ * @returns A new class constructor with type conversion and validation
  *
- * @example
+ * @example Basic usage
  * ```typescript
- * const Person = kind(
- *   { name: String, age: Number },
- *   {
- *     greet() {
- *       return `Hello, my name is ${this.name}`;
- *     },
- *     getAge() {
- *       return this.age;
- *     }
+ * const Person = kind({
+ *   name: String,
+ *   age: Number,
+ *   greet() {
+ *     return `Hello, I'm ${this.name} and I'm ${this.age} years old`;
  *   }
- * );
+ * });
  *
- * const john = new Person({ name: "John", age: 30 });
- * console.log(john.greet()); // Fully typed with autocomplete!
+ * const john = new Person({ name: "John", age: "30" }); // age converted to number
+ * console.log(john.greet()); // "Hello, I'm John and I'm 30 years old"
+ * ```
+ * 
+ * @example With optional properties and arrays
+ * ```typescript
+ * const User = kind({
+ *   name: String,
+ *   email: optional(String),
+ *   tags: array(String),
+ *   isActive: Boolean
+ * });
+ * 
+ * const user = new User({
+ *   name: "Jane",
+ *   tags: ["admin", 123, true], // converted to ["admin", "123", "true"]
+ *   isActive: "true"             // converted to true
+ * });
+ * ```
+ * 
+ * @example Extending a base class
+ * ```typescript
+ * class BaseEntity {
+ *   id = Math.random();
+ *   save() { console.log('Saving...'); }
+ * }
+ * 
+ * const User = kind({
+ *   name: String,
+ *   email: String
+ * }, BaseEntity);
+ * 
+ * const user = new User({ name: "Bob", email: "bob@example.com" });
+ * user.save(); // Method from BaseEntity
  * ```
  */
 // Helper function to convert a value using its constructor

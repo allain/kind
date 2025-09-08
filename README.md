@@ -1,4 +1,4 @@
-# @albud/kind
+# @allain/kind
 
 Create classes with automatic validation and type conversion in TypeScript/JavaScript.
 
@@ -17,7 +17,7 @@ The key advantages of using `kind` over traditional class definitions:
 A simple example showing how to create a class with properties and methods:
 
 ```typescript
-import { kind } from "jsr:@albud/kind";
+import { kind } from "jsr:@allain/kind";
 
 const Person = kind({
   name: String,
@@ -44,7 +44,7 @@ Explore more sophisticated patterns and capabilities:
 
 ### Optional Properties
 ```typescript
-import { kind, optional } from "jsr:@albud/kind";
+import { kind, optional } from "jsr:@allain/kind";
 
 const User = kind({
   name: String,
@@ -56,7 +56,7 @@ const user = new User({ name: "John" }); // email is undefined
 
 ### Arrays
 ```typescript
-import { kind, array } from "jsr:@albud/kind";
+import { kind, array } from "jsr:@allain/kind";
 
 const TodoList = kind({
   items: array(String),
@@ -130,7 +130,7 @@ How to add `kind` to your project:
 
 ```bash
 # Deno
-import { kind, optional, array } from "jsr:@albud/kind";
+import { kind, optional, array } from "jsr:@allain/kind";
 ```
 
 ## But Why?
